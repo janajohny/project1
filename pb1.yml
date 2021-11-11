@@ -1,0 +1,59 @@
+- name: Create Azure VM
+  hosts: localhost
+  gather_facts: true
+  tasks:
+  - name: Create virtual network
+    azure_rm_virtualnetwork:
+      resource_group: linuxVMRg
+      name: myVnet
+      address_prefixes: "10.0.0.0/16"
+  - name: Add subnet
+    azure_rm_subnet:
+      resource_group: linuxVMRg
+      name: mySubnet
+      address_prefix: "10.0.1.6/24"
+      virtual_network: myVnet
+  - name: Create public IP address
+    azure_rm_publicipaddress:
+      resource_group: linuxVMRg
+      allocation_method: Static
+      name: myPublicIP
+      #  register: output_ip_address
+      #- name: Public IP of VM
+      #debug:
+      # msg: "The public IP is {{ output_ip_address.state.ip_address }}."
+  - name: Create Network Security Group that allows SSH
+    azure_rm_securitygroup:
+      resource_group: linuxVMRg
+      name: myNetworkSecurityGroup
+      rules:
+        - name: SSH
+          protocol: Tcp
+          destination_port_range: 22
+          access: Allow
+          priority: 1001
+          direction: Inbound
+  - name: Create virtual network interface card
+    azure_rm_networkinterface:
+      resource_group: linuxVMRg
+      name: myNIC
+      virtual_network: myVnet
+      subnet: mySubnet
+      public_ip_name: myPublicIP
+      security_group: myNetworkSecurityGroup
+  - name: Create VM
+    azure_rm_virtualmachine:
+      resource_group: linuxVMRg
+      name: ansiblevm
+      vm_size: Standard_DS1_v2
+      admin_username: vmadmin
+      ssh_password_enabled: false
+      ssh_public_keys:
+        - path: /home/vmadmin/.ssh/
+          key_data: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCp/EvmYYj3WEt8wHMpDoKzm38K0ni96F0L5UrCBX92o02KQQztOIkH/+eMByItPY2VUkN0hf7WEOQLL54YbXDFcezAdN8+R4g3vLdCUQLWdt6Fpl9pCSOYMhAUGkahX5Ww9M5YSFZmignw7bVkxEhugODKwC66eClnSL1k6KVZZ+qP5S2TzK4ji/CyEoae2/FsOrCZm/GsyEC1PXtB6CFNdwKrtMLKXp1S3QvPusW65+1e7DJ5O4ba1rS1BHMRm8WEoMHQomoL1N6567SsXAsNTBid/5nEwrmhVm9mpQO2fNypQtcoLDw37nN1DjTmgJKpvpwVtegL6yb6DrPmC8OH vmadmin@linuxVM2"
+      network_interfaces: myNIC
+      image:
+        offer: UbuntuServer
+        publisher: Canonical
+        sku: 18.04-LTS
+        version: latest
